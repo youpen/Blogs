@@ -52,3 +52,6 @@
 
 ![image](https://github.com/youpen/Blogs/blob/dev/images/Screen%20Shot%202018-11-29%20at%203.05.45%20PM.png?raw=true)
 ￼
+
+参考资料：
+https://bugs.chromium.org/p/v8/issues/detail?id=3491
