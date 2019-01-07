@@ -128,14 +128,6 @@ types.visit(ast, {
 });
 ```
 
-下面展示了将`...rest`参数转换为浏览器兼容的ES5代码的例子
-```javascript
-var b = types.builders;
-
-
-
-```
-
 
 ##### NodePath
 `NodePath`是一个包裹着AST node的对象， 通过它可以访问父节点和祖先节点（即从根节点到当前节点的chain），还提供了一些scope的信息。
