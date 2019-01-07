@@ -128,6 +128,84 @@ types.visit(ast, {
 });
 ```
 
+下面展示了将`...rest`参数转换为浏览器兼容的ES5代码的例子
+```javascript
+var b = types.builders;
+
+// 构造出`Array.prototype.slice.call`的ast tree供后面复用代码
+var sliceExpr = b.memberExpression(
+    b.memberExpression(
+        b.memberExpression(
+            b.identifier("Array"),
+            b.identifier("prototype"),
+            false
+        ),
+        b.identifier("slice"),
+        false
+    ),
+    b.identifier("call"),
+    false
+);
+
+
+types.visit(ast, {
+    // 定义了名为visitXxxxx的方法，这个方法会在遍历到指定类型及其子类型时被调用
+    // （e.g., FunctionDeclaration、FunctionExpression、ArrowFunctionExpression)）
+    // 注意types.visit会根据已知的type提前计算一个检索表，
+    // 用于映射visit方法到相应节点（比方说visitFunction => FunctionDeclaration），
+    // 这个过程会花费一个固定的时间
+    visitFunction: function(path) {
+        // visitor方法会接受一个参数`NodePath` Object（关于NodePath,详情见下文）
+        var node = path.node;
+
+        // 在visitor方法中，我们需要在return之前调用this.traverse方法(通常会传入visitor方法中接受到的NodePath对象作为参数)
+        // 或者直接return false表示中止遍历subtree
+        // 如果不这样做，会有一个严重的报错，以防你忘记遍历subtree
+        // 此外，因为你可以在任何位置调用traverse,所以你可以另外的将遍历穿插在各种操作当中
+        this.traverse(path);
+
+        // 此次遍历只关注rest操作符
+        if (!node.rest) {
+            return;
+        }
+
+        // For the purposes of this example, we won't worry about functions
+        // with Expression bodies.
+        n.BlockStatement.assert(node.body);
+
+        // Use types.builders to build a variable declaration of the form
+        //
+        //   var rest = Array.prototype.slice.call(arguments, n);
+        //
+        // where `rest` is the name of the rest parameter, and `n` is a
+        // numeric literal specifying the number of named parameters the
+        // function takes.
+        var restVarDecl = b.variableDeclaration("var", [
+            b.variableDeclarator(
+                node.rest,
+                b.callExpression(sliceExpr, [
+                    b.identifier("arguments"),
+                    b.literal(node.params.length)
+                ])
+            )
+        ]);
+
+        // Similar to doing node.body.body.unshift(restVarDecl), except
+        // that the other NodePath objects wrapping body statements will
+        // have their indexes updated to accommodate the new statement.
+        path.get("body", "body").unshift(restVarDecl);
+
+        // Nullify node.rest now that we have simulated the behavior of
+        // the rest parameter using ordinary JavaScript.
+        path.get("rest").replace(null);
+
+        // There's nothing wrong with doing node.rest = null, but I wanted
+        // to point out that the above statement has the same effect.
+        assert.strictEqual(node.rest, null);
+    }
+});
+```
+
 
 ##### NodePath
 `NodePath`是一个包裹着AST node的对象， 通过它可以访问父节点和祖先节点（即从根节点到当前节点的chain），还提供了一些scope的信息。
