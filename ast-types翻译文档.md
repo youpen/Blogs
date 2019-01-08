@@ -88,6 +88,7 @@ exports.eachField = function(object, callback, context) {
 // result is either true or false to indicates whether the callback
 // returned true for any element or not.
 // 难翻译的地方在于indicate这个词有'表明'和‘作为xx的标记(代表着)’这两种因果顺序不同的意思
+// 并且‘to’容易让人理解为主动的感觉
 // colins: indicate: If one thing indicates something else, it is a sign of that thing
 exports.someField = function(object, callback, context) {
   return getFieldNames(object).some(function(object, callback, context) {
@@ -169,17 +170,14 @@ types.visit(ast, {
             return;
         }
 
-        // For the purposes of this example, we won't worry about functions
-        // with Expression bodies.
+        // 不处理没有BlockStatement的function TODO 这是指什么形式的函数？
         n.BlockStatement.assert(node.body);
 
-        // Use types.builders to build a variable declaration of the form
+        // 使用types.builders来构建下面的变量声明
         //
         //   var rest = Array.prototype.slice.call(arguments, n);
         //
-        // where `rest` is the name of the rest parameter, and `n` is a
-        // numeric literal specifying the number of named parameters the
-        // function takes.
+        // `rest` rest parameter的名字, `n` 是指定该函数有名参数的数量
         var restVarDecl = b.variableDeclaration("var", [
             b.variableDeclarator(
                 node.rest,
@@ -190,22 +188,17 @@ types.visit(ast, {
             )
         ]);
 
-        // Similar to doing node.body.body.unshift(restVarDecl), except
-        // that the other NodePath objects wrapping body statements will
-        // have their indexes updated to accommodate the new statement.
+        // 类似于node.body.body.unshift(restVarDecl)的操作，唯一不同的是，下面的用法，包裹这个body的NodePath会更新对应的index
         path.get("body", "body").unshift(restVarDecl);
 
-        // Nullify node.rest now that we have simulated the behavior of
-        // the rest parameter using ordinary JavaScript.
+        // 删除rest参数，因为我们已经使用var rest = Array.prototype.slice.call(arguments, n);来替换了
         path.get("rest").replace(null);
-
-        // There's nothing wrong with doing node.rest = null, but I wanted
-        // to point out that the above statement has the same effect.
+        
+        // 使用node.rest = null也是完全没问题的，我只是想指出，上面的方法也是可以使用的
         assert.strictEqual(node.rest, null);
     }
 });
 ```
-
 
 ##### NodePath
 `NodePath`是一个包裹着AST node的对象， 通过它可以访问父节点和祖先节点（即从根节点到当前节点的chain），还提供了一些scope的信息。
