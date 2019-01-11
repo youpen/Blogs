@@ -38,10 +38,8 @@ console.log('test');
     // {
     //   moduleId: function(module, exports) { /*模块中代码内容*/ }
     // }
-    // 但这里我们发现传入了三个参数 // TODO 所以第三个参数有什么用？
-    // 由此可见，一个js文件中的this指向的是当前的exports对象
-    // console.log(exports === this) //true
-    // TODO 尝试this.a = 10, 看看引入变量知否能得到a
+    // 但这里我们发现传入了三个参数，前两个是供模块间变量的引用，__webpack_require__用于递归解析模块
+    // 此处还可以看出模块内this === exports
     modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
     // 表示模块中代码以及运行过了
     module.l = true;
@@ -111,7 +109,7 @@ console.log('test');
 然后执行了以下步骤：
 1. 定义了缓存对象installedModules
    installedModules[moduleId] 格式如下
-    ```json
+    ```
        {
              i: moduleId, // moduleId
              l: false, // 是否被加载过
@@ -121,18 +119,30 @@ console.log('test');
 2. 定义了__webpack_require__函数
 3. 在__webpack_require__函数上添加属一系列属性
 4. 执行并返回__webpack_require__
-  1. 接受参数（目前推测为入口moduleId）
+  1. __webpack_require__接受参数（目前推测为入口moduleId）
   2. 检查是否在缓存中，有的话直接返回exports,没有则加入缓存中，同时赋值给module变量（即当前正在处理的模块）
   3. 执行最外部自执行函数的参数中的moduleId对应的function,将this指向module.exports,
      同时传入三个参数（module, module.exports, __webpack_require__），然后执行模块代码内容
 
- // TODO exports为外界访问的入口，从目前来看，入口文件exports的内容可以在global访问
- // 即global中应该有exports对象，并且是入口文件的exports
-
 此处是从打包中代码发现的一些小点
 1. 每个js文件（module）都存在两个自有的变量（module和exports,所以和commonjs一样？）
-2. 一个js文件中的this === exports, TODO 尝试this.a = 10, 看看引入变量知否能得到a
-3. 待确认，如果不是入口模块，应该还有一个__webpack_require__变量？
+2. 如果不是入口模块，模块内还存在一个__webpack_require__变量
+    打印得到
+    ```
+        { [Function: __webpack_require__]
+          m:
+           { './M1.js': [Function: ./M1.js],
+             './index.js': [Function: ./index.js] },
+          c:
+           { './index.js': { i: './index.js', l: false, exports: {} },
+             './M1.js': { i: './M1.js', l: false, exports: [Object] } },
+          d: [Function],
+          n: [Function],
+          o: [Function],
+          p: '',
+          s: './index.js' }
+    ```
+    这应该是一个模块间共享的变量
 
 #### 两个模块打包分析
 ---
@@ -238,8 +248,12 @@ export const M1 = 'I am M1';
         其实我们知道，commonJS导出的就是exports对象，我们可以在exports对象上添加属性，然后外部模块拿到exports直接使用上面的所有属性
         而ES Module中，我们可以不用命名的导出指定变量
         ```
-            export const a = 1;
-            export const b = 2;
+            export const m1 = 1;
+            export const m2 = 2;
         ```
         而在代码加载前，webpack并不知道变量a和变量b的名称，所以需要自己在exports对象中添加属性，供引入模块使用。
         而这个属性名是如何处理的，我们后面再看。
+
+从上面分析我们可以得到一些用处不大的知识：
+1. 如果使用commonJS， 模块内可以访问`exports`并且`exports === this`
+2. 如果使用ES Module， 模块内可以访问`__webpack_exports__`并且`__webpack_exports__ === this`
