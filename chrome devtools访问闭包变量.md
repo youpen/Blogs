@@ -20,6 +20,9 @@
 
 于是google一下，发现这个问题有人早就提了issue。
 大意就是，这个V8的一个优化。V8引擎会根据代码情况，将变量分配给当前的stack或者在堆内存中的context对象中。
+```javascript
+``// TODO 此处添加补充知识，对比call stack和execution stack,设计词法作用域
+```
 大概的情况有这几种：
 1. 如果闭包变量没有被使用，变量会分配在变量所在的的stack中
 就像上面的例子的代码。当前context无法直接访问。
