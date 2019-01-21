@@ -1,0 +1,72 @@
+#### write
+略
+#### wall 
+广播 略
+#### ping
+给远程主机发送信息包，测试网络连通性
+-c 指定发送次数
+#### ifconfig
+查看和设置网卡信息
+ifconfig 网卡名称 IP地址
+eg: ifconfig eth0 192.168.8.250 
+```
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	ether(表示以太网) 64:76:ba:ae:5a:6e（MAC地址）
+	inet6（IPV6地址） fe80::65:8655:2711:19c4%en0 prefixlen 64 secured scopeid 0x5
+	inet 192.168.1.7（IP地址） netmask 0xffffff00 broadcast 192.168.1.255
+	nd6 options=201<PERFORMNUD,DAD>
+	media: autoselect
+	status: active
+```
+
+#### mail
+mail 查看当前用户的信息
+mail user 给user发送邮件
+与write的区别在于，不要求对方用户在线
+
+#### last
+查看系统目前及过去所有登录过的用户
+
+#### lastlog
+查看每个用户的最后登录信息
+-u [用户id] 查看指定用户最后登录信息
+
+#### traceroute
+显示数据包到主机间的路径 
+
+```
+traceroute www.baidu.com
+traceroute: Warning: www.a.shifen.com has multiple addresses; using 14.215.177.38
+traceroute to www.a.shifen.com (14.215.177.38), 64 hops max, 52 byte packets
+ 1  192.168.1.1 (192.168.1.1)  2.089 ms  1.161 ms  4.153 ms
+ 2  100.64.0.1 (100.64.0.1)  8.835 ms  5.484 ms  4.613 ms
+ 3  49.187.37.59.broad.dg.gd.dynamic.163data.com.cn (59.37.187.49)  6.691 ms
+    202.105.158.97 (202.105.158.97)  2.995 ms
+    202.105.157.169 (202.105.157.169)  4.887 ms
+ 4  202.105.158.30 (202.105.158.30)  7.853 ms
+    202.105.158.73 (202.105.158.73)  7.111 ms
+    202.105.158.38 (202.105.158.38)  5.299 ms
+ 5  113.96.4.66 (113.96.4.66)  8.780 ms
+    113.96.4.94 (113.96.4.94)  11.735 ms
+    113.96.4.50 (113.96.4.50)  16.090 ms
+ 6  94.96.135.219.broad.fs.gd.dynamic.163data.com.cn (219.135.96.94)  10.805 ms  10.543 ms
+```
+用于检测网络问题时非常有用，如果网络出问题，在自己这一步（192.168.1.1）便停止了，则是自己的问题
+如果在中途某个节点出问题，则是运营商或者网站问题
+
+#### netstat（TODO在mac中效果不一样,需另外处理）
+选项
+ - -t tcp协议
+- -u udp协议
+- -l 监听
+- -r 路由
+- -n 显示ip地址和端口号
+
+常用的三个方式：
+- netstat -tlun 查看本机监听的端口（就是本机开了哪些端口）
+（P.S. 在mac上实测，tlun中t和u不能同时显示）
+
+- netstat -an 查看本机的所有网络连接(与an的最大区别在于，可以看到已经连接（established）的端口，而tlun只能看到正在监听(listen)的端口)
+- netstat -rn 查看本机路由表(查看网关，例如192.168.1.1)
+
+#### setup(redhat独有 )

@@ -1,0 +1,217 @@
+
+#### 命令格式
+命令 -[-选项] [参数]
+例如： ls -la /etc
+说明： 
+1. 个别命令不遵循此格式
+2.  当有多个选项时，可以写在一起例如 -la是两个选项
+3. 简化和完整选项 -a等价于 --all（一般简写用一个`-`,完整用`--`）
+4. 参数一般可以填多个，比如： `ls ./ ../`以及`mkdir -p a/b/c d/e/f`
+5. linux严格区分大小写
+#### ls
+-a 显示全部
+-l 显示详细信息
+-d 显示目录的详细信息
+-i 显示inode节点
+
+当使用 -l时，我们得到下面这样的信息
+```
+total 64
+1----------  2 3-----  4----   5---  6--------- 7--------------------- //此行为手动添加，便于下文定位
+drwxr-xr-x   6 yupeng  staff   192B  3  3  2018 AndroidStudioProjects
+drwxr-xr-x   8 yupeng  staff   256B 10 21  2017 Applications
+-rw-r--r--@  1 yupeng  staff    21K  8 25  2016 DSCF7322.jpg
+drwx------+ 22 yupeng  staff   704B 11 27 21:45 Desktop
+drwx------+ 30 yupeng  staff   960B  6 30  2018 Documents
+drwx------+ 73 yupeng  staff   2.3K  1 13 15:39 Downloads
+drwxr-xr-x   4 yupeng  staff   128B  8  8 22:50 IdeaProjects
+drwx------@ 83 yupeng  staff   2.6K  8 31 02:25 Library
+drwx------+  6 yupeng  staff   192B  2  3  2016 Movies
+drwx------+  7 yupeng  staff   224B  9 24  2014 Music
+drwxr-xr-x  13 yupeng  staff   416B  6 19  2018 PacVim
+drwx------+ 14 yupeng  staff   448B  7 19  2017 Pictures
+drwxr-xr-x+  6 yupeng  staff   192B  9  9  2014 Public
+```
+为了便于描述，我添加了用于定位的第一行
+其中
+1. 权限描述，这个比较复杂，我们放在后面
+2. 引用计数
+3. linux中的每个文件把用户分成三类，分别是 所有者（user）、所属组(group)、其他人(other)，其中user只有一个。
+而3就是user
+4. 所属组
+5. 文件大小
+6. 文件最后修改时间
+7.文件名
+
+###### 文件权限：
+第一个字母表示文件类型
+- `-`表示一个文件
+- `d`表示一个目录
+- `l`表示软连接
+还有别的类型不常见，所以不提及。
+
+后面9个字符分别表示user、group、other三种用户的权限
+三个字符分别表示`r` 读、`w`写、`x`执行三个权限，其中`x`为最高级选项，如果一个文件没有`x`的功能（比如说只是一个普通文本），一般即使owner,`x`也为`-`
+如果为`-`则表示没有对应权限
+
+#### mkdir
+mkdir [目录名]
+-p 多级目录时递归创建
+
+#### cd
+`cd -` 回到先前的目录（注意：不一定是上级目录）
+#### pwd
+略
+#### touch
+略
+#### cat
+cat [文件名]
+-n 显示行号
+P.S. tac命令可以倒着显示
+#### more
+分页显示内容（此命令经常用于查看help信息）
+more [文件名]
+- 空格或者f翻页
+- Enter 一行行换行往下
+#### less
+类似more（在linux是可以往上翻，但在mac中more也可以）
+个人感觉less更好，因为more在翻到底的时候会自动退出
+而且less可以按下`/`进行搜索，然后使用`n`进入下一个匹配词语（more不可以）
+（但实际上，iterm的搜索更好用）
+#### head
+查看文件的前n行
+head -n [文件名]
+如果不指定n，默认显示前十行
+#### tail
+通head，但是从末尾开始看
+-f 动态实时观看文件变化
+
+#### ln
+ln 原文件 目标文件
+-s 软连接
+###### 软连接： 
+  - 在ls -l 中的权限描述为 lrwxrwxrwx
+  - 可以针对目录
+  - 其余同快捷方式
+###### 硬链接： 
+ - 相当于cp -p + 同步更新
+ - 当删除原文件，硬链接文件依然存在
+ - 原文件和硬文件对用同一个i节点·
+ - 硬链接不能跨分区
+ - 不能针对目录，只能针对文件
+P.S. 实际情况中，硬链接在linux中应用得非常少
+
+#### chmod
+chmod [ {ugoa} {-+=} {rwx}] [文件名]
+-R 递归修改
+u: user，就是owner
+g: group 所属组
+o： other
+a: all
+eg:
+```
+chmod u+x file1 (给file1的owner增加x的权限)
+chmod u+x,g-w file1 (给file1的owner增加x的权限，给file1的group去掉w的权限)
+chmod o=rwx file1 (给file1增加rwx的权限，不管原来如何)
+```
+
+但是linux中更常用的是用数字修改
+```
+r ---- 4
+w ---- 2
+x ---- 1
+
+rwxrwxrwx === 777
+rwxrw-rw- === 766
+rwxr-xr-x === 755
+```
+此外还有注意：
+文件和目录的rwx意义不一样
+```
+    r   w   x
+    ---------
+文件| 查看文件 | 修改文件 | 执行文件
+目录|使用ls查看目录 | 增加和删除目录的内容 | 可以cd进入目录
+    ---------
+```
+很容易误会的地方在于，一个文件是否可以被删除，不是看这个文件的w权限，
+而是该文件所在目录的w权限
+
+只有owner和root有修改文件权限的能力
+
+#### chown
+chown [用户] [目录或文件]
+P.S. 只有root可以执行这个命令`
+
+#### chgrp
+chgrp [所属组] [目录或文件]
+#### umask
+-S 以rwx的形式显示
+显示、设置文件的默认权限
+(感觉不重要，忽略)
+
+#### find
+find [搜索范围] [匹配条件]
+P.S. 此命令参数非常多，这里只记录一些常用参数
+- -name
+```
+find / -name file1 //在/目录，精准搜索文件名xxx
+
+find / -name *file1* // 在/目录，搜索文件名包含file1的文件
+// file1* 搜索以file1开头的文件
+// *file1 搜索以file1结尾的文件
+// file1??? 搜索以file1开头，后面有三个字符的文件
+```
+- -iname
+```
+同-name，但是不区分大小写
+```
+- -size [数据块]
+在Linux中，一个数据块为512bytes，0.5k
+```
+find /home -size +204800 // 在/home目录搜索大于100M的文件
+find /home -size -204800 // 在/home目录搜索小于100M的文件
+find /home -size =204800 // 在/home目录搜索等于100M的文件
+```
+- -user
+根据用户搜索
+```
+find /home -user Test //在/home 目录中搜索所有属于Test用户的文件
+```
+- -group
+类似user
+- -ctime
+```
+find /home -cmin -5 // 在/home目录，搜索5分钟内被修改过属性的文件和目录
+find /home -cmin +5 // 在/home目录，搜索5分钟之前被修改过属性的文件和目录
+P.S. 属性指用ls -l所看到的那些文件属性
+find /home -mmin -5 // 在/home目录，搜索5分钟内被修改过文件内容的文件和目录
+find /home -mmin +5 // 在/home目录，搜索5分钟之前被修改过文件内容的文件和目录
+find /home -amin -5 // 在/home目录，搜索5分钟内被访问过的文件和目录
+find /home -amin +5 // 在/home目录，搜索5分钟内被访问过的文件和目录
+```
+- -a
+and，可以组合两个命令
+```
+find /home -size +204800 -a -size -5096000
+// 搜索大于100M并且小于200M的文件
+```
+- -o
+or，或，用法同-a
+
+- -type
+按文件类型
+f文件，d目录，l软链
+
+- -exec {} \;
+- -ok {} \;
+连接命令，搜索完执行某个命令
+// {} \; 为固定格式，{} 表示搜索结果
+```
+find /home -size +204800 -a -size -5096000 -exec ls -l {} \;
+find /home -size +204800 -a -size -5096000 -ok ls -l {} \;
+-ok 会在对每个搜索结果执行命令前询问，一般在rm操作用
+-exec 则直接执行不询问
+```
+
+-inum 根据i节点查找，一般用于搜索硬链接，因为硬链接的i节点是相同的
