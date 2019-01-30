@@ -3,6 +3,7 @@ function selectionSort(arr) {
   for (let i = 0; i < arr.length; i++) {
     let lowestIndex = i;
     for (let j = i; j < arr.length; j++) {
+      // TODO binary search to reduce swap
       if (arr[j] < arr[lowestIndex]) {
         lowestIndex = j;
       }
