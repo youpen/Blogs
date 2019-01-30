@@ -4,9 +4,12 @@ function quicksort(arr, left=0, right=arr.length-1) {
     return;
   }
   // let pivot = left;
-  // TODO 自由定义pivot的实现
+  // TODO 自由定义pivot的实现（目前的问题在于自由定义的pivot在遍历后位置会变化，需要在partition中单独处理）
+  // TODO 增加正反排序
+  // 如果改用left作为pivot，在partition中for循环之后的swap就会出问题，
+  // 因为调用swap(arr, right, partitionIndex)需确定right是pivot，从而将数组拆分，如果使用left,pivot的位置会改变
   const pivot = right;
-  const partitionIndex = partition(arr, left, right, pivot)
+  const partitionIndex = partition(arr, left, right, pivot);
   quicksort(arr, left, partitionIndex - 1);
   quicksort(arr, partitionIndex + 1, right);
   return arr
@@ -14,7 +17,7 @@ function quicksort(arr, left=0, right=arr.length-1) {
 
 function partition(arr, left, right, pivot) {
   // partitionIndex永远指向大值
-  // i永远指向小值
+  // i遇到大值跳过，遇到小值停下处理
   let partitionIndex = left;
   for (let i = left; i < right; i++) {
     if (arr[i] < arr[pivot]) {
