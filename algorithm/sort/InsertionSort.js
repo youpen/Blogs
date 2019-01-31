@@ -3,6 +3,8 @@ function insertionSort(arr) {
     for (let j = i; j > 0; j--) {
       if (arr[j-1] > arr[j]) {
         swap(arr, j-1, j);
+      } else {
+        break;
       }
     }
   }
