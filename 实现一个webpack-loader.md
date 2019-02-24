@@ -84,5 +84,5 @@ arguments===> { '0': 'export const M1 = \'I am M1\';\n' }
       return 'test';
     }
 ```
-会发现递归停止，可见webpack会每次解析loader返回的字符串，如果当中含有别的依赖，则递归调用loader
-可见loader的执行也遵循模块依赖顺序。
+会发现递归停止，可见webpack会每次解析loader返回的字符串，如果当中含有别的依赖，则递归调用loader，
+即loader的执行也遵循模块依赖顺序。

@@ -1,0 +1,230 @@
+当我第一次看webpack源码的时候，会被其中跳转频繁的源码所迷惑，很多地方不断点甚至找不到头绪。这一切都是因为没有先去了解webpack的依赖库Tapable。
+Tapble是webpack在打包过程中，控制打包在什么阶段调用Plugin的库，是一个典型的观察者模式的实现，但实际又比这复杂。
+为了能让读者最快了解Tapable的基本用法，我们先用一个最简单的demo代码作为示例，然后通过增加需求来一步步了解用法。
+> P.S. 由于Tapable2.0的实现已经完全重写过，此处均以Tapable2.0为准
+// TODO 在前面先讲讲介绍一下Hook，并且在代码中增加一些注释
+#### 基本用法
+```
+const { SyncHook } = require("tapable");
+
+// 为了便于理解，取名为EventEmitter
+const EventEmitter = new SyncHook();
+
+// tap方法用于注册事件， 其中第一个参数仅用作注释，增加可读性，源码中并没有用到这个变量
+EventEmitter.tap('Event1', function () {
+  console.log('Calling Event1')
+});
+EventEmitter.tap('Event2', function () {
+  console.log('Calling Event2')
+});
+EventEmitter.call();
+```
+这就是最基础的SyncHook用法，基本和前端的EventListener一样。
+
+#### Tapable的“compile”
+假设我们有一个需求，如果我们在两个事件中都需要用到公用变量
+```
+const { SyncHook } = require("tapable");
+
+// 为了便于理解，取名为EventEmitter
+const EventEmitter = new SyncHook(['arg1', 'arg2']);
+
+// tap方法用于注册事件， 其中第一个参数仅用作注释，增加可读性，源码中并没有用到这个变量
+EventEmitter.tap('Event1', function (param1, param2) {
+  console.log('Calling Event1');
+  console.log(param1);
+  console.log(param2);
+});
+EventEmitter.tap('Event2', function (param1, param2) {
+  console.log('Calling Event2');
+  console.log(param1)
+  console.log(param2)
+});
+const arg1 = 'test1';
+const arg2 = 'test2';
+EventEmitter.call(arg1, arg2);
+// 打印结果
+// Calling Event1
+// test1
+// test2
+// Calling Event2
+// test1
+// test2
+```
+从上面代码可以看出，我们在新建SyncHook实例时传入一个数组，数组的每一项是我们所需公共变量的形参名。然后在call方法中传入相应数量参数。在打印结果中可以看到， 每个事件回调函数都可以获得正确打印变量arg1和arg2。
+
+
+但是细心的读者会疑惑，`new SyncHook(['arg1', 'arg2'])`中传入的数组似乎没有必要。这其实和Tapable的实现方式有关。我们尝试在在`new SyncHook()`中不传入参数，直接在call传入arg1和arg2。
+```
+const EventEmitter = new SyncHook();
+...
+...
+EventEmitter.call(arg1, arg2);
+// 打印结果
+// Calling Event1
+// undefined
+// undefined
+// Calling Event2
+// undefined
+// undefined
+```
+事件回调函数并不能获取变量。
+其实当调用`call`方法时，Tapable内部通过字符串拼接的方式，“编译”了一个新函数，并且通过缓存的方式保证这个函数只需要编译一遍。
+
+Tapable的xxxHook均继承自基类`Hook`，我们直接点进`call`方法可以发现`this.call = this._call`，而`this._call`在`Hook.js`的底部代码被定义的，也就是`createCompileDelegate`的值，
+
+```
+Object.defineProperties(Hook.prototype, {
+	_call: {
+		value: createCompileDelegate("call", "sync"),
+		configurable: true,
+		writable: true
+	},
+	_promise: {
+		value: createCompileDelegate("promise", "promise"),
+		configurable: true,
+		writable: true
+	},
+	_callAsync: {
+		value: createCompileDelegate("callAsync", "async"),
+		configurable: true,
+		writable: true
+	}
+});
+```
+`createCompileDelegate`的定义如下
+```
+function createCompileDelegate(name, type) {
+	return function lazyCompileHook(...args) {
+		this[name] = this._createCall(type);
+		return this[name](...args);
+	};
+}
+```
+可见`this._call`的值为函数`lazyCompileHook`，当我们第一次调用的时候调用的时候实际是`lazyCompileHook(...args)`，并且我们知道闭包变量`name === 'call'`, 所以`this.call`的值被替换为`this._createCall(type)`。
+`this._createCall`和`this.compile`的定义如下
+```
+	_createCall(type) {
+		return this.compile({
+			taps: this.taps,
+			interceptors: this.interceptors,
+			args: this._args,
+			type: type
+		});
+	}
+	compile(options) {
+		throw new Error("Abstract: should be overriden");
+	}
+```
+所以`this.call`最终的返回值由衍生类自行实现，我们看一下`SyncHook`的定义
+```
+const Hook = require("./Hook");
+const HookCodeFactory = require("./HookCodeFactory");
+
+class SyncHookCodeFactory extends HookCodeFactory {
+	content({ onError, onResult, onDone, rethrowIfPossible }) {
+		return this.callTapsSeries({
+			onError: (i, err) => onError(err),
+			onDone,
+			rethrowIfPossible
+		});
+	}
+}
+
+const factory = new SyncHookCodeFactory();
+
+class SyncHook extends Hook {
+	tapAsync() {
+		throw new Error("tapAsync is not supported on a SyncHook");
+	}
+
+	tapPromise() {
+		throw new Error("tapPromise is not supported on a SyncHook");
+	}
+
+	compile(options) {
+		factory.setup(this, options);
+		return factory.create(options);
+	}
+}
+```
+可以发现this.call的值最终其实由工厂类`SyncHookCodeFactory`的`create`方法返回
+```
+	create(options) {
+		this.init(options);
+		let fn;
+		switch (this.options.type) {
+			case "sync":
+				fn = new Function(
+					this.args(),
+					'"use strict";\n' +
+						this.header() +
+						this.content({
+							onError: err => `throw ${err};\n`,
+							onResult: result => `return ${result};\n`,
+							onDone: () => "",
+							rethrowIfPossible: true
+						})
+				);
+				console.log(fn.toString());
+				break;
+			case "async":
+				fn = new Function(
+					this.args({
+						after: "_callback"
+					}),
+					'"use strict";\n' +
+						this.header() +
+						this.content({
+							onError: err => `_callback(${err});\n`,
+							onResult: result => `_callback(null, ${result});\n`,
+							onDone: () => "_callback();\n"
+						})
+				);
+				console.log(fn.toString());
+				break;
+			case "promise":
+				let code = "";
+				code += '"use strict";\n';
+				code += "return new Promise((_resolve, _reject) => {\n";
+				code += "var _sync = true;\n";
+				code += this.header();
+				code += this.content({
+					onError: err => {
+						let code = "";
+						code += "if(_sync)\n";
+						code += `_resolve(Promise.resolve().then(() => { throw ${err}; }));\n`;
+						code += "else\n";
+						code += `_reject(${err});\n`;
+						return code;
+					},
+					onResult: result => `_resolve(${result});\n`,
+					onDone: () => "_resolve();\n"
+				});
+				code += "_sync = false;\n";
+				code += "});\n";
+				fn = new Function(this.args(), code);
+				console.log(fn.toString());
+				break;
+		}
+		this.deinit();
+		return fn;
+	}
+```
+这里利用Function的构造函数形式，并且传入字符串拼接生产函数，这在我们平时开发中用得比较少，我们直接打印一下最终返回的fn，也就是this.call的实际值。
+```
+function anonymous(/*``*/) {
+  "use strict";
+  var _context;
+  // _x为存储注册回调函数的数组
+  var _x = this._x;
+  var _fn0 = _x[0];
+  _fn0();
+  var _fn1 = _x[1];
+  _fn1();
+}
+```
+到这里为止一目了然，我们可以看到我们的注册回调是怎样在this.call方法中一步步执行的。至少为什么要用这种曲折的方法实现`this.call`，我们在文末在进行介绍，接下来我们就通过打印`fn`来看看Tapable的一系列Hook函数的实现。
+
+#### Tapable的xxxHook方法解析
+
