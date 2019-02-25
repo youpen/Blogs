@@ -20,7 +20,18 @@ EventEmitter.tap('Event2', function () {
 EventEmitter.call();
 ```
 这就是最基础的SyncHook用法，基本和前端的EventListener一样。
-
+除了SyncHook，Tapable还提供了一系列别的Hook
+```
+  SyncBailHook,
+  SyncWaterfallHook,
+  SyncLoopHook,
+  AsyncParallelHook,
+  AsyncParallelBailHook,
+  AsyncSeriesHook,
+  AsyncSeriesBailHook,
+  AsyncSeriesWaterfallHook
+```
+这些Hook我们会在后面进行分析。
 #### Tapable的“compile”
 假设我们有一个需求，如果我们在两个事件中都需要用到公用变量
 ```
@@ -154,7 +165,7 @@ class SyncHook extends Hook {
 		this.init(options);
 		let fn;
 		switch (this.options.type) {
-			case "sync":
+			case "sync": // 目前我们只关心Sync
 				fn = new Function(
 					this.args(),
 					'"use strict";\n' +
@@ -166,7 +177,7 @@ class SyncHook extends Hook {
 							rethrowIfPossible: true
 						})
 				);
-				console.log(fn.toString());
+				console.log(fn.toString()); // 此处打印fn
 				break;
 			case "async":
 				fn = new Function(
@@ -181,7 +192,6 @@ class SyncHook extends Hook {
 							onDone: () => "_callback();\n"
 						})
 				);
-				console.log(fn.toString());
 				break;
 			case "promise":
 				let code = "";
@@ -204,7 +214,6 @@ class SyncHook extends Hook {
 				code += "_sync = false;\n";
 				code += "});\n";
 				fn = new Function(this.args(), code);
-				console.log(fn.toString());
 				break;
 		}
 		this.deinit();
@@ -224,7 +233,286 @@ function anonymous(/*``*/) {
   _fn1();
 }
 ```
-到这里为止一目了然，我们可以看到我们的注册回调是怎样在this.call方法中一步步执行的。至少为什么要用这种曲折的方法实现`this.call`，我们在文末在进行介绍，接下来我们就通过打印`fn`来看看Tapable的一系列Hook函数的实现。
+到这里为止一目了然，我们可以看到我们的注册回调是怎样在this.call方法中一步步执行的。
+至于为什么要用这种曲折的方法实现`this.call`，我们在文末在进行介绍，
+接下来我们就通过打印`fn`来看看Tapable的一系列Hook函数的实现。
 
 #### Tapable的xxxHook方法解析
+Tapable有一系列Hook方法，但是这么多的Hook方法都是无非是为了控制注册事件的**执行顺序**以及**异常处理**。
+##### Sync
+最简单的`SyncHook`前面已经讲过，我们从`SyncBailHook`开始看。
+###### SyncBailHook
+```
+const { SyncBailHook } = require("tapable");
 
+const EventEmitter = new SyncBailHook();
+
+EventEmitter.tap('Event1', function () {
+	console.log('Calling Event1')
+});
+EventEmitter.tap('Event2', function () {
+	console.log('Calling Event2')
+});
+EventEmitter.call();
+
+// 打印fn
+function anonymous(/*``*/) {
+	"use strict";
+	var _context;
+	var _x = this._x;
+	var _fn0 = _x[0];
+	var _result0 = _fn0();
+	if (_result0 !== undefined) {
+		return _result0;
+	} else {
+		var _fn1 = _x[1];
+		var _result1 = _fn1();
+		if (_result1 !== undefined) {
+			return _result1;
+		} else {
+		}
+	}
+}
+```
+通过打印fn，我们可以轻易的看出，SyncBailHook提供了中止注册函数执行的机制，只要在某个注册回调中返回一个非undefined的值，运行就会中止。
+Tap这个单词除了轻拍的意思，还有水龙头的意思，相信取名为Tapable的意思就是表示这个是一个事件流控制库，而Bail有保释和舀水的意思，很容易明白这是带中止机制的一个Hook。
+
+###### SyncWaterfallHook
+```
+const { SyncWaterfallHook } = require("tapable");
+
+const EventEmitter = new SyncWaterfallHook(['arg1']);
+
+EventEmitter.tap('Event1', function () {
+	console.log('Calling Event1')
+	return 'Event1returnValue'
+});
+EventEmitter.tap('Event2', function () {
+	console.log('Calling Event2')
+});
+EventEmitter.call();
+
+// 打印fn
+function anonymous(arg1) {
+	"use strict";
+	var _context;
+	var _x = this._x;
+	var _fn0 = _x[0];
+	var _result0 = _fn0(arg1);
+	if (_result0 !== undefined) {
+		arg1 = _result0;
+	}
+	var _fn1 = _x[1];
+	var _result1 = _fn1(arg1);
+	if (_result1 !== undefined) {
+		arg1 = _result1;
+	}
+	return arg1;
+}
+```
+可以看出`SyncWaterfallHook `就是将上一个事件注册回调的返回值作为下一个注册函数的参数，这就要求在`new SyncWaterfallHook(['arg1']);`需要且只能传入一个形参。
+
+###### SyncLoopHook
+```
+const { SyncLoopHook } = require("tapable");
+
+const EventEmitter = new SyncLoopHook(['arg1']);
+
+let counts = 5;
+EventEmitter.tap('Event1', function () {
+	console.log('Calling Event1');
+	counts--;
+	console.log(counts);
+	if (counts <= 0) {
+		return;
+	}
+	return counts;
+});
+EventEmitter.tap('Event2', function () {
+	console.log('Calling Event2')
+});
+EventEmitter.call();
+
+// 打印fn
+function anonymous(arg1) {
+	"use strict";
+	var _context;
+	var _x = this._x;
+	var _loop;
+	do {
+		_loop = false;
+		var _fn0 = _x[0];
+		var _result0 = _fn0(arg1);
+		if (_result0 !== undefined) {
+			_loop = true;
+		} else {
+			var _fn1 = _x[1];
+			var _result1 = _fn1(arg1);
+			if (_result1 !== undefined) {
+				_loop = true;
+			} else {
+				if (!_loop) {
+				}
+			}
+		}
+	} while (_loop);
+}
+// 打印结果
+// Calling Event1
+// 4
+// Calling Event1
+// 3
+// Calling Event1
+// 2
+// Calling Event1
+// 1
+// Calling Event1
+// 0
+// Calling Event2
+```
+```SyncLoopHook```只有当上一个注册事件函数返回undefined的时候才会执行下一个注册函数，否则就不断重复调用。
+
+##### Async
+Async系列的Hook在每个函数提供了next作为回调函数，用于控制异步流程
+
+###### AsyncSeriesHook
+Series有顺序的意思，这个Hook用于按顺序执行异步函数。
+```
+const { AsyncSeriesHook } = require("tapable");
+
+const EventEmitter = new AsyncSeriesHook();
+
+// 我们从将tap改为tapAsync，专门用于异步处理，并且只有tapAsync提供了next的回调函数
+EventEmitter.tapAsync('Event1', function (next) {
+	console.log('Calling Event1');
+	setTimeout(
+		() => {
+			console.log('AsyncCall in Event1')
+			next()
+		},
+		1000,
+	)
+});
+EventEmitter.tapAsync('Event2', function (next) {
+	console.log('Calling Event2');
+	next()
+});
+
+//此处传入最终完成的回调
+EventEmitter.callAsync((err) => {
+	if (err) { console.log(err); return; }
+	console.log('Async Series Call Done')
+});
+// 打印fn
+function anonymous(_callback) {
+	"use strict";
+	var _context;
+	var _x = this._x;
+	var _fn0 = _x[0];
+	_fn0(_err0 => {
+		if (_err0) {
+			_callback(_err0);
+		} else {
+			var _fn1 = _x[1];
+			_fn1(_err1 => {
+				if (_err1) {
+					_callback(_err1);
+				} else {
+					_callback();
+				}
+			});
+		}
+	});
+}
+
+// 打印结果
+// Calling Event1
+// AsyncCall in Event1
+// Calling Event2
+// Async Series Call Done
+
+
+```
+从打印结果可以发现，两个事件之前是串行的，并且next中可以传入err参数，当传入err，直接中断异步，并且将err传入我们在call方法传入的完成回调函数中。
+
+###### AsyncParallelHook
+```
+const { AsyncParallelHook } = require("tapable");
+
+const EventEmitter = new AsyncParallelHook();
+
+// 我们从将tap改为tapAsync，专门用于异步处理，并且只有tapAsync提供了next的回调函数
+EventEmitter.tapAsync('Event1', function (next) {
+	console.log('Calling Event1');
+	setTimeout(
+		() => {
+			console.log('AsyncCall in Event1')
+			next()
+		},
+		1000,
+	)
+});
+EventEmitter.tapAsync('Event2', function (next) {
+	console.log('Calling Event2');
+	next()
+});
+
+//此处传入最终完成的回调
+EventEmitter.callAsync((err) => {
+	if (err) { console.log(err); return; }
+	console.log('Async Series Call Done')
+});
+
+// 打印fn
+function anonymous(_callback) {
+	"use strict";
+	var _context;
+	var _x = this._x;
+	do {
+		var _counter = 2;
+		var _done = () => {
+			_callback();
+		};
+		if (_counter <= 0) break;
+		var _fn0 = _x[0];
+		_fn0(_err0 => {
+            // 调用这个函数的时间不能确定，有可能已经执行了接下来的几个注册函数
+			if (_err0) {
+                // 如果还没执行所有注册函数，终止
+				if (_counter > 0) {
+					_callback(_err0);
+					_counter = 0;
+				}
+			} else {
+                // 同样，由于函数实际调用时间无法确定，需要检查是否已经运行完毕，
+				if (--_counter === 0) _done();
+			}
+		});
+        // 执行下一个注册回调之前，检查_counter是否被重置等，如果重置说明某些地方返回err，直接终止。
+		if (_counter <= 0) break;
+		var _fn1 = _x[1];
+		_fn1(_err1 => {
+			if (_err1) {
+				if (_counter > 0) {
+					_callback(_err1);
+					_counter = 0;
+				}
+			} else {
+				if (--_counter === 0) _done();
+			}
+		});
+	} while (false);
+
+}
+
+// 打印结果
+// Calling Event1
+// Calling Event2
+// AsyncCall in Event1
+// Async Series Call Done
+```
+从打印结果看出Event2的调用在AsyncCall in Event1之前，说明异步事件是并发的。
+
+剩下的`AsyncParallelBailHook, AsyncSeriesBailHook, AsyncSeriesWaterfallHook`其实大同小异，类比Sync系列即可。
+
+#### Tapable为什么要编译出新函数来执行？
