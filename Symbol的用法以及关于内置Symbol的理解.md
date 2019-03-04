@@ -9,7 +9,7 @@ Symbol表示独一无二的值，任何Symbol值都不相同。
 
 ---
 ### 1. Symbol的生成
-Symbol生成有两种方式，一种是`Symbol()`，一种是`Symbol.key()`，区别会在后详细解释。
+Symbol生成有两种方式，一种是`Symbol()`，一种是`Symbol.for()`，区别会在后详细解释。
 #### 1.1 Symbol()
 基本使用方式
 ```
@@ -44,21 +44,21 @@ var s2 = Symbol("foo");
 
 s1 === s2 // false”
 ```
-#### 1.2 Symbol.key()
-> 使用`Symbol.key()`，我们后面都使用名词`登记`
+#### 1.2 Symbol.for()
+> 使用`Symbol.for()`，我们后面都使用名词`登记`
 
 每次我们调用`Symbol()`，我们总是生成新的`Symbol`，那么如何获取我们定义过的Symbol呢？我们当然可以用变量保存起来，然后导出到每个需要的地方使用。
 但是Symbol本身也提供了一个属于`Symbol`的全局作用域。
 ```
-var s1 = Symbol.key('test');
-var s2 = Symbol.key('test');
+var s1 = Symbol.for('test');
+var s2 = Symbol.for('test');
 
 s1 === s2 // true
 ```
-当调用`Symbol.key('test')`，Symbol就会在所以登记过的`Symbol`中查找用`test`字符串定义过的Symbol，然后返回该Symbol。
+当调用`Symbol.for('test')`，Symbol就会在所以登记过的`Symbol`中查找用`test`字符串定义过的Symbol，然后返回该Symbol。
 注意，如果该字符串没有在Symbol登记过，则会返回新Symbol。
 ```
-// 在React源码中使用Symbol.key()的代码片段
+// 在React源码中使用Symbol.for()的代码片段
 export const REACT_ELEMENT_TYPE = hasSymbol
   ? Symbol.for('react.element')
   : 0xeac7;
@@ -113,6 +113,8 @@ Symbol的唯一性，也是可以安全改写`instanceof`的的保证。
 
 这里没有记录这两部分，可以直接看「深入理解ES6」中Symbol一章。
 ### 总结
-Symbol目前使用的频率比较少，而关于Symbol的全局作用域似乎有点走向过去没有模块，容易导致变量被覆盖的老路。React的实例代码中似乎也特意用了命名空间例如`react.element`。
+Symbol目前使用的频率比较少，但是使用Symbol.for定义的Symbol可以在不同frame以及work server中使用。
+这种全局作用域似乎有点走向过去没有模块，容易导致变量被覆盖的老路。但是Symbol和变量不一样，并没有办法去覆盖一个Symbol。
+正如上文所说的，Symbol.for('x')只有在属于x的Symbol不存在时才会创建新的，所以不存在Symbol覆盖的情况。
 
 参考文章：https://stackoverflow.com/questions/48347156/symbols-well-known-symbols-to-change-built-in-behavior
