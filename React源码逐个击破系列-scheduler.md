@@ -528,18 +528,18 @@ firstCallbackNode === null // 如果成立则链表为空
 ```
 这个其实就是在判断链表是否为空，因为任何对链表的删除和增加操作，都会更新firstCallbackNode的值，保证firstCallbackNode不为null，除非整个链表已经没有任何元素了。
 
-##### currentDidTimeout
+###### currentDidTimeout
 boolean
 用于判断当前callback是否超时。
 
 ---
-##### isExecutingCallback
+###### isExecutingCallback
 boolean
 判断整个scheduler是否正在`flush`callback，`flush`可以理解为执行callback。
 这个变量在函数flushWork中设置为true，当callback执行完之后设置为false
 
 ---
-##### isHostCallbackScheduled
+###### isHostCallbackScheduled
 boolean
 判断是否进入了requestHostCallback，requestHostCallback会开启animationTick，进行每一个帧的任务调度。当调用到flushWork直到链表中的callback处理结束，设为false。
 主要用于当一个callback处理后产生continuationCallback时，而这个continuationCallback再次成为firstCallbackNode(也就是expirationTime最小的callback)，需要重新调用ensureHostCallbackIsScheduled时，将当前的相关变量重置
@@ -556,7 +556,8 @@ function
 就是函数flushWork，这个变量可能会被置null，用于animationTick判断是否中止递归
 
 ---
-######　isMessageEventScheduled
+###### isMessageEventScheduled
+
 在animationTick中，判断通过messageChannel传输的回调是否执行了
 
 ---
