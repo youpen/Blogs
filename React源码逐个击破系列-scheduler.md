@@ -500,6 +500,7 @@ function flushFirstCallback() {
 下面记录了部分核心变量的解释，作帮助阅读使用
 ##### 核心变量
 > 在下面变量的命名中，包含`hostCallback`,host可以理解为主要的。包含`scheduled`可以理解为是否正在处理
+
 ---
 ##### callback环形链表
 ###### 基础结构
@@ -536,11 +537,13 @@ boolean
 boolean
 判断整个scheduler是否正在`flush`callback，`flush`可以理解为执行callback。
 这个变量在函数flushWork中设置为true，当callback执行完之后设置为false
+
 ---
 ##### isHostCallbackScheduled
 boolean
 判断是否进入了requestHostCallback，requestHostCallback会开启animationTick，进行每一个帧的任务调度。当调用到flushWork直到链表中的callback处理结束，设为false。
 主要用于当一个callback处理后产生continuationCallback时，而这个continuationCallback再次成为firstCallbackNode(也就是expirationTime最小的callback)，需要重新调用ensureHostCallbackIsScheduled时，将当前的相关变量重置
+
 ```
     scheduledHostCallback = null;
     isMessageEventScheduled = false;
@@ -548,8 +551,10 @@ boolean
 ```
 ---
 ###### scheduledHostCallback
+
 function
 就是函数flushWork，这个变量可能会被置null，用于animationTick判断是否中止递归
+
 ---
 ######　isMessageEventScheduled
 在animationTick中，判断通过messageChannel传输的回调是否执行了
