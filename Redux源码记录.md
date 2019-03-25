@@ -54,6 +54,16 @@ Redux源码还是很简单的，核心还是在于Redux对于状态管理的设�
 遍历listener的过程同时又操作listener，这是应该避免的，在java中还会出现线程安全问题。
 所以这也是每次修改nextListener的时候需要调用ensureCanMutateNextListeners的原因。
 
+其实在注册订阅中经常可能会有这种需求，在redux-saga中，take本质上也是注册函数，saga也是这么处理的，这是在channel中的一个函数
+```
+ const ensureCanMutateNextTakers = () => {
+    if (nextTakers !== currentTakers) {
+      return
+    }
+    nextTakers = currentTakers.slice()
+  }
+```
+
 #### applyMiddleware
 `applyMiddleware`用了大量的currying，所以有时候看起来比较绕。
 函数代码很少，直接展示出来
