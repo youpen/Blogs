@@ -3,6 +3,13 @@
 
 如果你依然不熟悉ES6的generator，建议回去阅读系列文章的第一篇。如果您已经熟悉Generator基础用法，接下来可以开始深入去了解一些细节部分。
 
+###### 译者补充
+基础篇可能要注意的地方：
+1. 调用iterator.next(),运行到最后一个，done属性依然为true，再调用一次才是false
+2. 在generator中使用return，然后调用iterator.next()运行到return可以直接获取return值，并且done属性为false
+3. next中传入参数，效果是相当于generator中上一个yield的返回值
+4. for..of可以直接遍历iterator，因为他会直接调用内部的iterator运行next
+
 ####错误处理
 Generator函数中有一个非常棒的设计，就是在generator内部代码是同步的，无论外部是同步还是异步调用的。
 
