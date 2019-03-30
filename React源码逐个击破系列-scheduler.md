@@ -15,7 +15,7 @@ Scheduler是React中相对独立的模块，也是React16实现`time slicing`最
 ##### unstable_scheduleCallback
 接下面我们从入口函数`unstable_scheduleCallback`开始看，
 `unstable_scheduleCallback`函数的内容概述就是生成`callbackNode`，并插入到callback链表之中
-```
+```js
 function unstable_scheduleCallback(callback, deprecated_options) {
   // callback是performAsyncWork，也就是我们上文所说的任务
   // getCurrentTime就是获取当前时间
@@ -107,7 +107,7 @@ function unstable_scheduleCallback(callback, deprecated_options) {
 至此我们明白了，这个函数的功能就是按照expirationTime从小到大排列callback链表。只要插入和排序一完成，我们就会调用`ensureHostCallbackIsScheduled`。
 
 ##### ensureHostCallbackIsScheduled
-```
+```js
 function ensureHostCallbackIsScheduled() {
   // 当某个callback已经被调用
   if (isExecutingCallback) {
@@ -128,7 +128,7 @@ function ensureHostCallbackIsScheduled() {
 `ensureHostCallbackIsScheduled`在后面会在各种情况再次调用，这里我们只要知道，`ensureHostCallbackIsScheduled`，并且调用了` requestHostCallback(flushWork, expirationTime)`就可以了。
 
 ##### requestHostCallback
-```
+```js
   requestHostCallback = function(callback, absoluteTimeout) {
     // scheduledHostCallback就是flushWork
     scheduledHostCallback = callback;
@@ -159,7 +159,7 @@ function ensureHostCallbackIsScheduled() {
 我们注意到函数名也有`callback`,但是这里是`hostCallback`，整个模块中的`hostCallback`函数都是指`flushWork`，我们后面再讲这个`flushWork`。
 注释中有一个疑点就是判断`isAnimationFrameScheduled`，这里是因为整个scheduler模块都是在`animationTick`函数中一帧一帧的调用的，我们在下一个`animationTick`函数中会详细讲解。
 
-```
+```js
 var requestAnimationFrameWithTimeout = function(callback) {
   // callback就是animationTick方法
   // schedule rAF and also a setTimeout
@@ -183,7 +183,7 @@ var requestAnimationFrameWithTimeout = function(callback) {
 > 在接下来部分内容，我们需要预先了解requestAnimationFrame和eventLoop的知识
 
 ##### animationTick
-```
+```js
   var animationTick = function(rafTime) {
     // scheduledHostCallback也就是callback
     if (scheduledHostCallback !== null) {
@@ -254,12 +254,12 @@ var requestAnimationFrameWithTimeout = function(callback) {
 ![AnimationTick](https://github.com/youpen/Blogs/blob/dev/images/ReactScheduler/AnimationTick.png?raw=true)
 了解了整个`AnimationTick`的流程，我们接下来看看具体的代码，AnimationTick的参数rafTime是当前的时间戳，activeFrameTime是React假设每一帧的时间，默认值为33，33是浏览器在每秒30帧的情况下，每一帧的时间。frameDeadline默认值为0。
 我们先跳过中间判断看一下frameDeadline的计算公式
-```
+```js
 frameDeadline = rafTime + activeFrameTime;
 ```
 所以frameDeadline是当前帧结束的时间。
 nextFrameTime则是下一帧预计剩余时间，我们看nextFrameTime的计算公式，
-```
+```js
 // 此处的rafTime是下一帧执行时的currentTime
 var nextFrameTime = rafTime - frameDeadline + activeFrameTime;
 ```
@@ -270,7 +270,7 @@ var nextFrameTime = rafTime - frameDeadline + activeFrameTime;
 
 ##### channel.port1.onmessage（idleTick）
 在AnimationTick中调用`port.postMessage(undefined);`之后，我们实际上进入了`channel.port1`的回调函数，
-```
+```js
   channel.port1.onmessage = function(event) {
     // 设置为false，防止animationTick的竞争关系
     isMessageEventScheduled = false;
@@ -316,7 +316,7 @@ var nextFrameTime = rafTime - frameDeadline + activeFrameTime;
     }
 ```
 此处代码用了React中常用的命名方式`prevXXXX`，一般是在某个流程之中，先保留之前的值，在执行完某个操作之后，再还原某个值，提供给别的代码告诉自己正在处理的阶段。例如
-```
+```js
     var prevScheduledCallback = scheduledHostCallback;
     scheduledHostCallback = null;
     ...
@@ -329,7 +329,7 @@ var nextFrameTime = rafTime - frameDeadline + activeFrameTime;
 ![image.png](https://github.com/youpen/Blogs/blob/dev/images/ReactScheduler/idleTick.png?raw=true)
 
 ##### flushWork
-```
+```js
 function flushWork(didTimeout) {
   // didTimeout是指任务是否超时
   // Exit right away if we're currently paused
@@ -404,7 +404,7 @@ function flushWork(didTimeout) {
 ```
 
 flushFirstCallback
-```
+```js
 function flushFirstCallback() {
   var flushedNode = firstCallbackNode;
 
@@ -523,7 +523,7 @@ function flushFirstCallback() {
  >TODO：补充expirationTime和优先级大小的关系以及贴上issue地址
 
 在scheduler的代码中，我们会经常看到一个判断
-```
+```js
 firstCallbackNode === null // 如果成立则链表为空
 ```
 这个其实就是在判断链表是否为空，因为任何对链表的删除和增加操作，都会更新firstCallbackNode的值，保证firstCallbackNode不为null，除非整个链表已经没有任何元素了。
@@ -544,7 +544,7 @@ boolean
 判断是否进入了requestHostCallback，requestHostCallback会开启animationTick，进行每一个帧的任务调度。当调用到flushWork直到链表中的callback处理结束，设为false。
 主要用于当一个callback处理后产生continuationCallback时，而这个continuationCallback再次成为firstCallbackNode(也就是expirationTime最小的callback)，需要重新调用ensureHostCallbackIsScheduled时，将当前的相关变量重置
 
-```
+```js
     scheduledHostCallback = null;
     isMessageEventScheduled = false;
     timeoutTime = -1;
