@@ -1,8 +1,9 @@
-当我第一次看webpack源码的时候，会被其中跳转频繁的源码所迷惑，很多地方不断点甚至找不到头绪。这一切都是因为没有先去了解webpack的依赖库Tapable。
+当我第一次看webpack源码的时候，会被其中跳转频繁的源码所迷惑，很多地方不断点甚至找不到头绪，因为plugin是事件系统，。这一切都是因为没有先去了解webpack的依赖库Tapable。
 Tapble是webpack在打包过程中，控制打包在什么阶段调用Plugin的库，是一个典型的观察者模式的实现，但实际又比这复杂。
 为了能让读者最快了解Tapable的基本用法，我们先用一个最简单的demo代码作为示例，然后通过增加需求来一步步了解用法。
-> P.S. 由于Tapable2.0的实现已经完全重写过，此处均以Tapable2.0为准
-// TODO 在前面先讲讲介绍一下Hook，并且在代码中增加一些注释
+> P.S. 由于Tapable0.28和Tapable1.0之后的实现已经完全不一样，此处均以Tapable2.0为准
+
+**Tapable的核心功能就是控制一系列注册事件之间的执行流控制**，比如我注册了三个事件，我可以希望他们是并发的，或者是同步依次执行，又或者其中一个出错后，后面的事件就不执行了，这些功能都可以通过tapable的hook实现，我们会在后面详细讲解。
 #### 基本用法
 ```
 const { SyncHook } = require("tapable");
@@ -514,5 +515,3 @@ function anonymous(_callback) {
 从打印结果看出Event2的调用在AsyncCall in Event1之前，说明异步事件是并发的。
 
 剩下的`AsyncParallelBailHook, AsyncSeriesBailHook, AsyncSeriesWaterfallHook`其实大同小异，类比Sync系列即可。
-
-#### Tapable为什么要编译出新函数来执行？
